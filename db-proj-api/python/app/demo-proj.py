@@ -1,9 +1,11 @@
 ## ITCS 3160-0002, Spring 2024
 ## Marco Vieira, marco.vieira@charlotte.edu
 ## University of North Carolina at Charlotte
+
+## Alex Mccomas, Ramone Thompson, Derrick Moore
  
 ## IMPORTANT: this file includes the Python implementation of the REST API
-## It is in this file that yiu should implement the functionalities/transactions   
+## It is in this file that you should implement the functionalities/transactions   
 
 import flask
 import logging, psycopg2, time
