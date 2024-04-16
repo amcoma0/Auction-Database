@@ -42,14 +42,12 @@ def db_connection():
 ## ENDPOINTS
 ##########################################################
 
-##
-## Demo POST
-##
-## Create a new user.
+
+## Create a new user. (complete)
 ##
 ## To use it, you need to use postman or curl:
 ##
-## curl -X POST http://localhost:8080/users/ -H 'Content-Type: application/json' -d '{"city": "London", "username": "ppopov", "name": "Peter Popov"}'
+## curl -X POST http://localhost:8080/users/ -H 'Content-Type: application/json' -d '{"username": "ppopov", "password": "test", "name": "Peter Popov", "email": "random@gmail.com"}'
 ##
 
 @app.route('/user', methods=['POST'])
@@ -91,7 +89,7 @@ def add_user():
 
     return flask.jsonify(response)
 
-## The below code is the code for the landing page of our auction site.
+## The below code is the code for the landing page of our auction site. (complete)
 ##
 ## Landing page
 ##
@@ -112,7 +110,111 @@ def landing_page():
     <br/>
     """
 
-## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
+## User Authentication.
+##
+## (insert description of function)
+##
+## (insert how to run function)
+
+
+
+## Create a new auction.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## List all existing auctions.
+##
+## (insert description of function)
+##
+## (insert how to run function)
+
+
+
+## Search existing auctions.
+##
+## (insert description of function)
+##
+## (insert how to run function)
+
+
+
+## Retrieve details of an auction
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## List all auctions in which the user has activity.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## Place a bid in an auction.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## Edit properties of an auction.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## Write a message on the auction's board.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## Immediate delivery of messages to users.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## Outbid notification.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## Close auction.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## Cancel an auction.
+##
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+
+
+## THIS IS AN EXAMPLE BELOW.
 
 ##
 ## Demo GET
@@ -154,7 +256,7 @@ def get_all_users():
 
     return flask.jsonify(response)
 
-## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
+## THIS IS AN EXAMPLE BELOW.
 
 ##
 ## Demo GET
@@ -197,7 +299,7 @@ def get_user(username):
 
     return flask.jsonify(response)
 
-## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
+## THIS IS AN EXAMPLE BELOW.
 
 ##
 ## Demo POST
@@ -248,7 +350,7 @@ def add_users():
 
     return flask.jsonify(response)
 
-## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
+## THIS IS AN EXAMPLE BELOW.
 
 ##
 ## Demo PUT
