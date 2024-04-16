@@ -42,6 +42,56 @@ def db_connection():
 ## ENDPOINTS
 ##########################################################
 
+##
+## Demo POST
+##
+## Add a new user in a JSON payload
+##
+## To use it, you need to use postman or curl:
+##
+## curl -X POST http://localhost:8080/users/ -H 'Content-Type: application/json' -d '{"city": "London", "username": "ppopov", "name": "Peter Popov"}'
+##
+
+@app.route('/user', methods=['POST'])
+def add_user():
+    logger.info('POST /users')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'POST /users - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'username' not in payload or 'email' not in payload or 'password' not in payload or 'name' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
+        return flask.jsonify(response)
+
+    # parameterized queries, good for security and performance
+    statement = 'INSERT INTO users (username, name, email, password) VALUES (%s, %s, %s, %s)'
+    values = (payload['username'], payload['name'], payload['email'], payload['password'])
+
+    try:
+        cur.execute(statement, values)
+
+        # commit the transaction
+        conn.commit()
+        response = {'status': StatusCodes['success'], 'results': f'Inserted users {payload["username"]}'}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'POST /users - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
+
+## THIS IS AN EXAMPLE. WE CAN KEEP OR DELETE.
 
 @app.route('/')
 def landing_page():
@@ -54,6 +104,8 @@ def landing_page():
     ITCS 3160-002, Spring 2024<br/>
     <br/>
     """
+
+## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
 
 ##
 ## Demo GET
@@ -73,7 +125,7 @@ def get_all_users():
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT username, name, city FROM users')
+        cur.execute('SELECT username, name, city FROM users1')
         rows = cur.fetchall()
 
         logger.debug('GET /users - parse')
@@ -95,6 +147,7 @@ def get_all_users():
 
     return flask.jsonify(response)
 
+## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
 
 ##
 ## Demo GET
@@ -116,7 +169,7 @@ def get_user(username):
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT username, name, city FROM users where username = %s', (username,))
+        cur.execute('SELECT username, name, city FROM users1 where username = %s', (username,))
         rows = cur.fetchall()
 
         row = rows[0]
@@ -137,6 +190,7 @@ def get_user(username):
 
     return flask.jsonify(response)
 
+## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
 
 ##
 ## Demo POST
@@ -164,7 +218,7 @@ def add_users():
         return flask.jsonify(response)
 
     # parameterized queries, good for security and performance
-    statement = 'INSERT INTO users (username, name, city) VALUES (%s, %s, %s)'
+    statement = 'INSERT INTO users1 (username, name, city) VALUES (%s, %s, %s)'
     values = (payload['username'], payload['city'], payload['name'])
 
     try:
@@ -187,6 +241,7 @@ def add_users():
 
     return flask.jsonify(response)
 
+## THIS IS AN EXAMPLE BELOW. WE CAN KEEP OR DELETE.
 
 ##
 ## Demo PUT
@@ -214,7 +269,7 @@ def update_users(username):
         return flask.jsonify(response)
 
     # parameterized queries, good for security and performance
-    statement = 'UPDATE users SET city = %s WHERE username = %s'
+    statement = 'UPDATE users1 SET city = %s WHERE username = %s'
     values = (payload['city'], username)
 
     try:
@@ -239,7 +294,7 @@ def update_users(username):
 
 
 
-
+# DO NOT CHANGE ANYTHING BELOW THIS COMMENT!
 
 ##########################################################
 ## MAIN

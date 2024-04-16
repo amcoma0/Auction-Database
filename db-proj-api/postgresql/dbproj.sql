@@ -1,66 +1,85 @@
 -- Replace this by the SQL code needed to create your database
 
-CREATE TABLE USERS
+CREATE TABLE USERS1
     (USERNAME VARCHAR(10) CONSTRAINT PK_DEPT PRIMARY KEY,
 	NAME VARCHAR(50) ,
 	CITY VARCHAR(20));
-INSERT INTO USERS VALUES ('ssmith','Scott Smith','New York');
-INSERT INTO USERS VALUES ('aking','Allen King','Dallas');
-INSERT INTO USERS VALUES ('jford','Jones Ford','Chicago');
-INSERT INTO USERS VALUES ('mmiller','Martin Miller','Boston');
+INSERT INTO USERS1 VALUES ('ssmith','Scott Smith','New York');
+INSERT INTO USERS1 VALUES ('aking','Allen King','Dallas');
+INSERT INTO USERS1 VALUES ('jford','Jones Ford','Chicago');
+INSERT INTO USERS1 VALUES ('mmiller','Martin Miller','Boston');
 
 COMMIT;
 
-CREATE TABLE person (
-	personid INTEGER,
+--UPDATED DATABASE BELOW.
+
+CREATE TABLE users (
+	personid SERIAL,
 	name	 VARCHAR(512) NOT NULL,
+	username VARCHAR(512),
+	password VARCHAR(512),
+	email	 VARCHAR(512),
 	PRIMARY KEY(personid)
 );
 
 CREATE TABLE buyer (
-	person_personid INTEGER,
-	PRIMARY KEY(person_personid)
+	users_personid INTEGER,
+	PRIMARY KEY(users_personid)
 );
 
 CREATE TABLE seller (
-	person_personid INTEGER,
-	PRIMARY KEY(person_personid)
+	users_personid INTEGER,
+	PRIMARY KEY(users_personid)
+);
+
+CREATE TABLE item (
+	itemid		 BIGINT,
+	seller_users_personid INTEGER NOT NULL,
+	buyer_users_personid	 INTEGER NOT NULL,
+	PRIMARY KEY(itemid)
 );
 
 CREATE TABLE auction (
-	auctionid					 INTEGER,
-	minprice						 DOUBLE PRECISION,
-	auctionenddate					 DATE,
-	auctionwinnerid					 INTEGER,
-	highestbid					 DOUBLE PRECISION,
-	itemid						 BIGINT,
-	seller_person_personid				 INTEGER,
-	weakentitytransaction_item_seller_person_personid INTEGER,
-	weakentitytransaction_item_buyer_person_personid	 INTEGER,
-	PRIMARY KEY(auctionid,seller_person_personid,weakentitytransaction_item_seller_person_personid,weakentitytransaction_item_buyer_person_personid)
-);
-
-CREATE TABLE weakentitytransaction_item (
-	sellerid		 INTEGER,
-	buyerid		 INTEGER,
-	transactionamount	 DOUBLE PRECISION,
-	itemid			 BIGINT,
+	auctionid		 INTEGER,
+	minprice		 DOUBLE PRECISION,
+	auctionenddate	 DATE,
+	auctionwinnerid	 INTEGER,
 	item_itemid		 BIGINT NOT NULL,
-	seller_person_personid	 INTEGER,
-	buyer_person_personid	 INTEGER,
-	seller_person_personid1 INTEGER NOT NULL,
-	buyer_person_personid1	 INTEGER NOT NULL,
-	PRIMARY KEY(seller_person_personid,buyer_person_personid)
+	seller_users_personid INTEGER NOT NULL,
+	PRIMARY KEY(auctionid)
 );
 
-ALTER TABLE buyer ADD CONSTRAINT buyer_fk1 FOREIGN KEY (person_personid) REFERENCES person(personid);
-ALTER TABLE seller ADD CONSTRAINT seller_fk1 FOREIGN KEY (person_personid) REFERENCES person(personid);
-ALTER TABLE auction ADD CONSTRAINT auction_fk1 FOREIGN KEY (seller_person_personid) REFERENCES seller(person_personid);
-ALTER TABLE auction ADD CONSTRAINT auction_fk2 FOREIGN KEY (weakentitytransaction_item_seller_person_personid, weakentitytransaction_item_buyer_person_personid) REFERENCES weakentitytransaction_item(seller_person_personid, buyer_person_personid);
-ALTER TABLE weakentitytransaction_item ADD UNIQUE (item_itemid);
-ALTER TABLE weakentitytransaction_item ADD CONSTRAINT weakentitytransaction_item_fk1 FOREIGN KEY (seller_person_personid) REFERENCES seller(person_personid);
-ALTER TABLE weakentitytransaction_item ADD CONSTRAINT weakentitytransaction_item_fk2 FOREIGN KEY (buyer_person_personid) REFERENCES buyer(person_personid);
-ALTER TABLE weakentitytransaction_item ADD CONSTRAINT weakentitytransaction_item_fk3 FOREIGN KEY (seller_person_personid1) REFERENCES seller(person_personid);
-ALTER TABLE weakentitytransaction_item ADD CONSTRAINT weakentitytransaction_item_fk4 FOREIGN KEY (buyer_person_personid1) REFERENCES buyer(person_personid);
+CREATE TABLE bids (
+	amount		 FLOAT(8),
+	auction_auctionid	 INTEGER,
+	buyer_users_personid INTEGER,
+	PRIMARY KEY(amount,auction_auctionid,buyer_users_personid)
+);
 
-COMMIT;
+CREATE TABLE board (
+	message		 VARCHAR(512),
+	posttime		 TIMESTAMP NOT NULL,
+	auction_auctionid INTEGER,
+	users_personid	 INTEGER,
+	PRIMARY KEY(message,posttime,auction_auctionid,users_personid)
+);
+
+CREATE TABLE inbox (
+	message	 VARCHAR(512),
+	messagetime	 TIMESTAMP,
+	subject	 VARCHAR(512),
+	users_personid INTEGER,
+	PRIMARY KEY(message,messagetime,users_personid)
+);
+
+ALTER TABLE buyer ADD CONSTRAINT buyer_fk1 FOREIGN KEY (users_personid) REFERENCES users(personid);
+ALTER TABLE seller ADD CONSTRAINT seller_fk1 FOREIGN KEY (users_personid) REFERENCES users(personid);
+ALTER TABLE item ADD CONSTRAINT item_fk1 FOREIGN KEY (seller_users_personid) REFERENCES seller(users_personid);
+ALTER TABLE item ADD CONSTRAINT item_fk2 FOREIGN KEY (buyer_users_personid) REFERENCES buyer(users_personid);
+ALTER TABLE auction ADD CONSTRAINT auction_fk1 FOREIGN KEY (item_itemid) REFERENCES item(itemid);
+ALTER TABLE auction ADD CONSTRAINT auction_fk2 FOREIGN KEY (seller_users_personid) REFERENCES seller(users_personid);
+ALTER TABLE bids ADD CONSTRAINT bids_fk1 FOREIGN KEY (auction_auctionid) REFERENCES auction(auctionid);
+ALTER TABLE bids ADD CONSTRAINT bids_fk2 FOREIGN KEY (buyer_users_personid) REFERENCES buyer(users_personid);
+ALTER TABLE board ADD CONSTRAINT board_fk1 FOREIGN KEY (auction_auctionid) REFERENCES auction(auctionid);
+ALTER TABLE board ADD CONSTRAINT board_fk2 FOREIGN KEY (users_personid) REFERENCES users(personid);
+ALTER TABLE inbox ADD CONSTRAINT inbox_fk1 FOREIGN KEY (users_personid) REFERENCES users(personid);
