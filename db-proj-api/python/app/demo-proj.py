@@ -45,7 +45,7 @@ def db_connection():
 ##
 ## Demo POST
 ##
-## Add a new user in a JSON payload
+## Create a new user.
 ##
 ## To use it, you need to use postman or curl:
 ##
@@ -91,15 +91,22 @@ def add_user():
 
     return flask.jsonify(response)
 
-## THIS IS AN EXAMPLE. WE CAN KEEP OR DELETE.
+## The below code is the code for the landing page of our auction site.
+##
+## Landing page
+##
+## To use the below function, make sure the db-proj-api is running in docker and paste the following into
+## a web browser:
+##
+## http://localhost:8080/
 
 @app.route('/')
 def landing_page():
     return """
 
-    Hello World (Python)!  <br/>
+    Welcome to team RDA's auction site!  <br/>
     <br/>
-    Check the sources for instructions on how to use the endpoints!<br/>
+    Team members: Ramone Thompson, Derrick Moore, Alex Mccomas <br/>
     <br/>
     ITCS 3160-002, Spring 2024<br/>
     <br/>
