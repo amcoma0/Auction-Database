@@ -179,6 +179,28 @@ def get_all_auctions(): #(current_user): <-- Add this back to the "get_all_aucti
 ##
 ## (insert how to test/run function)
 
+@app.route("/userAuctions", methods=['GET'])
+# We need to add token verification and uncomment the line below and make sure the function still works.
+#@token_required
+def get_all_userAuctions(): #(current_user): <-- Add this back to the "get_all_auctions" part when token verification is working.
+    logger.info("###   DEMO: GET /userAuctions   ###")
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT auctionid, item_itemid FROM auction WHERE ") #Pick back up here Ramone.
+    rows = cur.fetchall()
+
+    payload = []
+    logger.info("---- auctions  ----")
+    for row in rows:
+        logger.info(row)
+        content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
+        payload.append(content) # payload to be returned
+
+    conn.close ()
+
+    return flask.jsonify(payload)
 
 
 ## Place a bid in an auction.
@@ -197,12 +219,50 @@ def get_all_auctions(): #(current_user): <-- Add this back to the "get_all_aucti
 
 
 
-## Write a message on the auction's board.
+## Write a message on the auction's board. (complete)
 ##
-## (insert description of function)
+## This function adds a message to the board table.
 ##
-## (insert how to test/run function)
+## Use postman.
 
+@app.route('/messageBoard', methods=['POST'])
+def add_messageBoard():
+    logger.info('POST /messageBoard')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'POST /users - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'message' not in payload or 'posttime' not in payload or 'auction_auctionid' not in payload or 'users_personid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
+        return flask.jsonify(response)
+
+    # parameterized queries, good for security and performance
+    statement = 'INSERT INTO board (message, posttime, auction_auctionid, users_personid) VALUES (%s, %s, %s, %s)'
+    values = (payload['message'], payload['posttime'], payload['auction_auctionid'], payload['users_personid'])
+
+    try:
+        cur.execute(statement, values)
+
+        # commit the transaction
+        conn.commit()
+        response = {'status': StatusCodes['success'], 'results': f'Inserted message {payload["message"]}'}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'POST /users - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
 
 
 ## Immediate delivery of messages to users.
