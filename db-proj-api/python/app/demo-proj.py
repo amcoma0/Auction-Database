@@ -219,7 +219,7 @@ def get_all_userAuctions(): #(current_user): <-- Add this back to the "get_all_a
 
 
 
-## Write a message on the auction's board. (complete)
+## Write a message on the auction's board. (complete) 
 ##
 ## This function adds a message to the board table.
 ##
