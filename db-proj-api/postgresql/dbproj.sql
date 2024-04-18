@@ -40,7 +40,7 @@ CREATE TABLE item (
 );
 
 CREATE TABLE auction (
-	auctionid		 INTEGER,
+	auctionid		 SERIAL,
 	minprice		 DOUBLE PRECISION,
 	auctionenddate	 DATE,
 	auctionwinnerid	 INTEGER,
