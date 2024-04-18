@@ -126,11 +126,34 @@ def landing_page():
 
 
 
-## List all existing auctions.
+## List all existing auctions. (complete) *just need to add the token verification*
 ##
-## (insert description of function)
+## This function lists all the existing auctions in the auctions table.
 ##
-## (insert how to run function)
+## curl -X GET http://localhost:8080/auctions -H "Content-Type: application/json" -H "access-token: ssmith513580758"
+
+@app.route("/auctions", methods=['GET'])
+# We need to add token verification and uncomment the line below and make sure the function still works.
+#@token_required
+def get_all_auctions(): #(current_user): <-- Add this back to the "get_all_auctions" part when token verification is working.
+    logger.info("###   DEMO: GET /auctions   ###")
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT auctionid, item_itemid FROM auction")
+    rows = cur.fetchall()
+
+    payload = []
+    logger.info("---- auctions  ----")
+    for row in rows:
+        logger.info(row)
+        content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
+        payload.append(content) # payload to be returned
+
+    conn.close ()
+
+    return flask.jsonify(payload)
 
 
 
