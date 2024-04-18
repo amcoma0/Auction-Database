@@ -1,6 +1,7 @@
 ## ITCS 3160-0002, Spring 2024
 ## Marco Vieira, marco.vieira@charlotte.edu
 ## University of North Carolina at Charlotte
+import random
 
 ## Alex Mccomas, Ramone Thompson, Derrick Moore
  
@@ -104,7 +105,7 @@ def landing_page():
 
     Welcome to team RDA's auction site!  <br/>
     <br/>
-    Team members: Ramone Thompson, Derrick Moore, Alex Mccomas <br/>
+    Team members: Ramone Thompson, Derrick Moore, Alex McComas <br/>
     <br/>
     ITCS 3160-002, Spring 2024<br/>
     <br/>
@@ -116,7 +117,44 @@ def landing_page():
 ##
 ## (insert how to run function)
 
+@app.route('/dbproj/user', methods=['PUT'])
+def user_login():
+    auth = flask.request.get_json()
 
+    if not auth or 'username' or 'username' not in auth \
+        or 'password' not in auth:
+        return flask.make_response('missing credentials', 401)
+
+    try:
+        conn = db_connection()
+        cur = conn.cursor()
+
+        statement = 'select 1 from users where username = %s and password = %s'
+        values = (auth['username'], auth['password'])
+
+        cur.execute(statement, values)
+
+        if cur.rowcount == 0:
+            response = ('could not verify', 401)
+        else:
+            response = auth['username'] + str(random.randrange(111111111, 999999999))
+            statement = "insert into tokens values (%s, %s, current_timestamp + (60 * interval '1 min'))"
+            values = (auth['username'], response)
+
+            cur.execute(statement, values)
+
+        conn.commit()
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'POST /users - error: {error}')
+        reponse = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return response
 
 ## Create a new auction.
 ##
@@ -136,10 +174,40 @@ def landing_page():
 
 ## Search existing auctions.
 ##
-## (insert description of function)
+## This function searches the available auctions with the keyword that relates to one or multiple auctions
 ##
-## (insert how to run function)
+## Use postman or cURL
 
+@app.route("/dbproj/auctions/<keyword>/", methods=['GET'])
+def search_auctions(keyword):
+    logger.info('GET /auctions/<keyword>')
+
+    logger.debug('auction: {keyword}')
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute('SELECT auctionid, minprice, item_itemid FROM auction where auctionid = %s', (keyword,))
+        rows = cur.fetchall()
+
+        row = rows[0]
+
+        logger.debug('GET /auctions/<keyword> - parse')
+        logger.debug(row)
+        content = {'Auction ID': row[0], 'Minimum Price': row[1], 'Item ID': row[2]}
+
+        response = {'status': StatusCodes['success'], 'results': content}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'GET /auctions/<keyword> - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
 
 
 ## Retrieve details of an auction
@@ -163,6 +231,10 @@ def landing_page():
 ## (insert description of function)
 ##
 ## (insert how to test/run function)
+
+@app.route('/dbproj/bid/{auctionid}/{bid}/')
+def place_bid(auctionid, bid):
+
 
 
 
