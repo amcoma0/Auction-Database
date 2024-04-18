@@ -241,7 +241,7 @@ def search_auctions(keyword):
 
 
 
-## List all auctions in which the user has activity.
+## List all auctions in which the user has activity. (Not complete)
 ##
 ## (insert description of function)
 ##
