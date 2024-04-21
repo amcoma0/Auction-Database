@@ -11,6 +11,8 @@ run pip install flask
 
 run pip install psycopg2-binary
 
+run pip install pyjwt
+
 #copy . /app
 
 #volume ["/app"]
