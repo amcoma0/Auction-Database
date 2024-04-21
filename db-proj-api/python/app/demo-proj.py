@@ -120,28 +120,33 @@ def landing_page():
 
 @app.route('/loginJWT', methods=['PUT'])
 def login_user_jwt():
-    auth = flask.request.authorization
+    auth = flask.request.get_json()
 
-    if not auth or not auth.username or not auth.password:
-        return flask.make_response('could not verify', 401)
-
+    if not auth or 'username' not in auth \
+            or 'password' not in auth:
+        return flask.make_response('missing credentials', 401)
     try:
         conn = db_connection()
         cur = conn.cursor()
-
-        statement = 'select 1 from users where username = %s and password = %s'
-        values = (auth.username, auth.password)
-
+        statement = 'select 1 from users \
+        where username = %s and password = %s'
+        values = (auth['username'], auth['password'])
         cur.execute(statement, values)
-
         if cur.rowcount == 0:
             response = ('could not verify', 401)
         else:
-            token = jwt.encode({'public_id': 105, 'exp' : datetime.datetime.now() + datetime.timedelta(minutes=60)}, app.config['SECRET_KEY'], algorithm='H3256')
-            response = flask.jsonify({'token' : token})
+            response = auth['username'] + \
+                       str(random.randrange(111111111, 999999999))
+            statement = "insert into tokens values( %s, %s , current_timestamp + (60 * interval '1 min'))"
+            values = (auth['username'], response)
+            cur.execute(statement, values)
+            conn.commit()
+
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error(f'POST /users - error: {error}')
-        response = {'status' : StatusCodes['internal_error'], 'errors' : str(error)}
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+        conn.rollback()
+
     finally:
         if conn is not None:
             conn.close()

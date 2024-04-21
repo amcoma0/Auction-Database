@@ -22,6 +22,12 @@ CREATE TABLE users (
 	PRIMARY KEY(personid)
 );
 
+CREATE TABLE tokens (
+    username VARCHAR(10),
+    token    VARCHAR(20),
+    timeout  TIMESTAMP
+);
+
 CREATE TABLE buyer (
 	users_personid INTEGER,
 	PRIMARY KEY(users_personid)
