@@ -1,6 +1,7 @@
 ## ITCS 3160-0002, Spring 2024
 ## Marco Vieira, marco.vieira@charlotte.edu
 ## University of North Carolina at Charlotte
+import datetime
 import random
 
 ## Alex Mccomas, Ramone Thompson, Derrick Moore
@@ -9,7 +10,7 @@ import random
 ## It is in this file that you should implement the functionalities/transactions   
 
 import flask
-import logging, psycopg2, time
+import logging, psycopg2, time, jwt
 
 app = flask.Flask(__name__)
 
@@ -117,10 +118,70 @@ def landing_page():
 ##
 ## (insert how to run function)
 
-@app.route('/dbproj/user', methods=['PUT'])
-def user_login():
+@app.route('/loginJWT', methods=['PUT'])
+def login_user_jwt():
+    auth = flask.request.authorization
+
+    if not auth or not auth.username or not auth.password:
+        return flask.make_response('could not verify', 401)
+
+    try:
+        conn = db_connection()
+        cur = conn.cursor()
+
+        statement = 'select 1 from users where username = %s and password = %s'
+        values = (auth.username, auth.password)
+
+        cur.execute(statement, values)
+
+        if cur.rowcount == 0:
+            response = ('could not verify', 401)
+        else:
+            token = jwt.encode({'public_id': 105, 'exp' : datetime.datetime.now() + datetime.timedelta(minutes=60)}, app.config['SECRET_KEY'], algorithm='H3256')
+            response = flask.jsonify({'token' : token})
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'POST /users - error: {error}')
+        response = {'status' : StatusCodes['internal_error'], 'errors' : str(error)}
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return response
 
 
+def token_required(f):
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        token = None
+
+        if 'access-token' in flask.request.headers:
+            token = flask.request.headers['access-token']
+
+        if not token:
+            return flask.jsonify({'message': 'invalid token'})
+
+        try:
+            conn = db_connection()
+            cur = conn.cursor()
+
+            cur.execute("delete from tokens where timeout < current_tinestamp")
+            conn.commit()
+            cur.execute("select username from tokens where token = %s", (token,))
+
+            if cur.rowcount==0:
+                return flask.jsonify({'message': 'invalid token'})
+
+            else:
+                current_user = cur.fetchone()[0]
+
+        except (Exception) as error:
+            logger.error(f'POST /users - error: {error}')
+            conn.rollback()
+            return flask.jsonify({'message': 'inavlid token'})
+
+        return f(current_user, *args, **kwargs)
+
+    return decorator
 ## Create a new auction.
 ##
 ## (insert description of function)
