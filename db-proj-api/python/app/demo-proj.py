@@ -12,6 +12,8 @@ import random
 import flask
 import logging, psycopg2, time, jwt
 
+from functools import wraps
+
 app = flask.Flask(__name__)
 
 StatusCodes = {
@@ -118,8 +120,8 @@ def landing_page():
 ##
 ## (insert how to run function)
 
-@app.route('/loginJWT', methods=['PUT'])
-def login_user_jwt():
+@app.route('/login', methods=['PUT'])
+def login_user():
     auth = flask.request.get_json()
 
     if not auth or 'username' not in auth \
@@ -128,15 +130,13 @@ def login_user_jwt():
     try:
         conn = db_connection()
         cur = conn.cursor()
-        statement = 'select 1 from users \
-        where username = %s and password = %s'
+        statement = 'select 1 from users where username = %s and password = %s'
         values = (auth['username'], auth['password'])
         cur.execute(statement, values)
         if cur.rowcount == 0:
             response = ('could not verify', 401)
         else:
-            response = auth['username'] + \
-                       str(random.randrange(111111111, 999999999))
+            response = auth['username'] + str(random.randrange(111111111, 999999999))
             statement = "insert into tokens values( %s, %s , current_timestamp + (60 * interval '1 min'))"
             values = (auth['username'], response)
             cur.execute(statement, values)
@@ -169,7 +169,7 @@ def token_required(f):
             conn = db_connection()
             cur = conn.cursor()
 
-            cur.execute("delete from tokens where timeout < current_tinestamp")
+            cur.execute("delete from tokens where timeout < current_timestamp")
             conn.commit()
             cur.execute("select username from tokens where token = %s", (token,))
 
@@ -193,6 +193,48 @@ def token_required(f):
 ##
 ## (insert how to test/run function)
 
+@app.route("/dbproj/auction", methods=['POST'])
+@token_required
+def create_auction(current_user):
+    logger.info('POST /users')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'POST /users - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'minprice' not in payload or 'auctionenddate' not in payload or 'title' not in \
+            payload or 'description' not in payload or 'item_itemid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
+        return flask.jsonify(response)
+
+    # parameterized queries, good for security and performance
+    statement = 'INSERT INTO auction (auctionid, minprice, auctionenddate, title, description, item_itemid, seller_users_personid) \
+    VALUES (%s, %s, %s, %s, %s, %s, %s)'
+    values = (payload['auctionid'], payload['minprice'], payload['auctionenddate'], payload['title'],
+              payload['description'],payload['item_itemid'], current_user.personid)
+
+    try:
+        cur.execute(statement, values)
+
+        # commit the transaction
+        conn.commit()
+        response = {'status': StatusCodes['success'], 'results': f'Inserted users {payload["username"]}'}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'POST /users - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
 
 
 ## List all existing auctions. (complete) *just need to add the token verification*
@@ -297,7 +339,7 @@ def get_all_userAuctions(): #(current_user): <-- Add this back to the "get_all_a
         content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
         payload.append(content) # payload to be returned
 
-    conn.close ()
+    conn.close()
 
     return flask.jsonify(payload)
 
@@ -309,7 +351,8 @@ def get_all_userAuctions(): #(current_user): <-- Add this back to the "get_all_a
 ## (insert how to test/run function)
 
 @app.route('/dbproj/bid/{auctionid}/{bid}/', methods=['POST'])
-def place_bid(auctionid, bid):
+@token_required
+def place_bid(auctionid, bid, current_user):
     logger.info('POST /bid')
     payload = flask.request.get_json()
 
@@ -319,13 +362,27 @@ def place_bid(auctionid, bid):
     logger.debug(f'POST / - payload: {payload}')
 
     # do not forget to validate every argument, e.g.,:
-    if 'username' not in payload:
+    if 'username' not in payload or 'amount' not in payload:
         response = {'status': StatusCodes['api_error'], 'results': 'username value not in payload'}
+        return flask.jsonify(response)
+
+    cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
+    auctionenddate = cur.fetchone()
+
+    if datetime.date.today() > auctionenddate:
+        response = {'status': StatusCodes['api_error'], 'results': 'Auction has already ended'}
+        return flask.jsonify(response)
+
+    cur.execute("SELECT minprice FROM auction WHERE auctionid = auction.auctionid")
+    minprice = cur.fetchone()
+
+    if bid < minprice:
+        response = {'status': StatusCodes['api_error'], 'results': 'You must bid more than the minimum price'}
         return flask.jsonify(response)
 
     # parameterized queries, good for security and performance
     statement = 'INSERT INTO bids (amount, auction_auctionid, buyer_users_personid) VALUES (%s, %s, %s)'
-    values = (payload['bid'], payload['auctionid'], payload['buyer_users_personid'])
+    values = (bid, auctionid, current_user.personid)
 
     try:
         cur.execute(statement, values)

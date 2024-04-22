@@ -50,6 +50,8 @@ CREATE TABLE auction (
 	minprice		 DOUBLE PRECISION,
 	auctionenddate	 DATE,
 	auctionwinnerid	 INTEGER,
+	title            VARCHAR(20),
+	description      VARCHAR(512),
 	item_itemid		 BIGINT NOT NULL,
 	seller_users_personid INTEGER NOT NULL,
 	PRIMARY KEY(auctionid)
