@@ -247,9 +247,8 @@ def create_auction(current_user):
 ## curl -X GET http://localhost:8080/auctions -H "Content-Type: application/json" -H "access-token: ssmith513580758"
 
 @app.route("/auctions", methods=['GET'])
-# We need to add token verification and uncomment the line below and make sure the function still works.
-#@token_required
-def get_all_auctions(): #(current_user): <-- Add this back to the "get_all_auctions" part when token verification is working.
+@token_required
+def get_all_auctions(current_user):
     logger.info("###   DEMO: GET /auctions   ###")
 
     conn = db_connection()
