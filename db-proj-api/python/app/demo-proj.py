@@ -240,11 +240,11 @@ def create_auction(current_user):
     return flask.jsonify(response)
 
 
-## List all existing auctions. (complete) *just need to add the token verification*
+## List all existing auctions. (complete)
 ##
 ## This function lists all the existing auctions in the auctions table.
 ##
-## curl -X GET http://localhost:8080/auctions -H "Content-Type: application/json" -H "access-token: ssmith513580758"
+## use postman.
 
 @app.route("/auctions", methods=['GET'])
 @token_required
