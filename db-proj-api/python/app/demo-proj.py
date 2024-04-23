@@ -196,13 +196,13 @@ def token_required(f):
 @app.route("/dbproj/auction", methods=['POST'])
 @token_required
 def create_auction(current_user):
-    logger.info('POST /users')
+    logger.info('POST /auction')
     payload = flask.request.get_json()
 
     conn = db_connection()
     cur = conn.cursor()
 
-    logger.debug(f'POST /users - payload: {payload}')
+    logger.debug(f'POST /auction - payload: {payload}')
 
     # do not forget to validate every argument, e.g.,:
     if 'minprice' not in payload or 'auctionenddate' not in payload or 'title' not in \
@@ -210,11 +210,14 @@ def create_auction(current_user):
         response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
         return flask.jsonify(response)
 
+    cur.execute('SELECT personid FROM users WHERE current_user = users.username ')
+    userid = cur.fetchone
+
     # parameterized queries, good for security and performance
-    statement = 'INSERT INTO auction (auctionid, minprice, auctionenddate, title, description, item_itemid, seller_users_personid) \
-    VALUES (%s, %s, %s, %s, %s, %s, %s)'
-    values = (payload['auctionid'], payload['minprice'], payload['auctionenddate'], payload['title'],
-              payload['description'],payload['item_itemid'], current_user.personid)
+    statement = 'INSERT INTO auction (minprice, auctionenddate, title, description, item_itemid, seller_users_personid) \
+    VALUES (%s, %s, %s, %s, %s, %s)'
+    values = (payload['minprice'], payload['auctionenddate'], payload['title'],
+              payload['description'],payload['item_itemid'], userid)
 
     try:
         cur.execute(statement, values)
@@ -262,7 +265,7 @@ def get_all_auctions(): #(current_user): <-- Add this back to the "get_all_aucti
         content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
         payload.append(content) # payload to be returned
 
-    conn.close ()
+    conn.close()
 
     return flask.jsonify(payload)
 
@@ -359,11 +362,11 @@ def place_bid(auctionid, bid, current_user):
     conn = db_connection()
     cur = conn.cursor()
 
-    logger.debug(f'POST / - payload: {payload}')
+    logger.debug(f'POST /bid - payload: {payload}')
 
     # do not forget to validate every argument, e.g.,:
-    if 'username' not in payload or 'amount' not in payload:
-        response = {'status': StatusCodes['api_error'], 'results': 'username value not in payload'}
+    if 'username' not in payload or 'amount' not in payload or 'bid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'value not in payload'}
         return flask.jsonify(response)
 
     cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
@@ -465,7 +468,8 @@ def add_messageBoard():
 ## (insert description of function)
 ##
 ## (insert how to test/run function)
-
+# @app.route('/inbox', methods=['PUT'])
+# def
 
 
 ## Outbid notification.
