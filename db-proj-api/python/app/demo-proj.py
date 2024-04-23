@@ -320,22 +320,22 @@ def search_auctions(keyword):
 ##
 ## (insert description of function)
 ##
-## (insert how to test/run function)
+## Use postman
 
 @app.route("/userAuctions", methods=['GET'])
-# We need to add token verification and uncomment the line below and make sure the function still works.
-#@token_required
-def get_all_userAuctions(): #(current_user): <-- Add this back to the "get_all_auctions" part when token verification is working.
+@token_required
+def get_all_userAuctions(current_user):
     logger.info("###   DEMO: GET /userAuctions   ###")
 
     conn = db_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT auctionid, item_itemid FROM auction WHERE ") #Pick back up here Ramone.
+    # cur.execute("SELECT auctionid, item_itemid FROM auction WHERE ") <-- previous line
+    cur.execute('SELECT auctionid, description, auctionenddate FROM auction WHERE current_user = auctionwinnerid OR current_user = seller_users_personid ') # Is this correct? PICK UP HERE
     rows = cur.fetchall()
 
     payload = []
-    logger.info("---- auctions  ----")
+    logger.info("---- user auctions  ----")
     for row in rows:
         logger.info(row)
         content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
@@ -479,11 +479,13 @@ def add_messageBoard():
 
 
 
-## Close auction.
+## Close auction. (not complete)
 ##
 ## (insert description of function)
 ##
-## (insert how to test/run function)
+## Use postman.
+@app.route('/close', methods=['POST'])
+def closeAuction():
 
 
 
