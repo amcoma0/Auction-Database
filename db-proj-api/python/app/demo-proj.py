@@ -310,9 +310,9 @@ def search_auctions(keyword):
 ## (insert description of function)
 ##
 ## (insert how to test/run function)
-@app.route('/dbproj/auction/{auctionid}/', methods=['GET'])
+@app.route('/dbproj/auction/{auctionid}', methods=['GET'])
 def get_user_details(auctionid):
-    logger.info('GET /dbproj/auction/{auctionid}/')
+    logger.info('GET /dbproj/auction/{auctionid}')
 
     logger.debug('auctionid: {auctionid}')
 
@@ -320,19 +320,19 @@ def get_user_details(auctionid):
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT auctionid, minprice, item_itemid FROM auction where auctionid = %i', (auctionid))
+        cur.execute('SELECT auctionid, minprice, item_itemid, auctionEndDate, auctionWinnerID FROM auction where auctionid = %i', (auctionid))
         rows = cur.fetchall()
 
         row = rows[0]
 
         logger.debug('GET /dbproj/auction/{auctionid} - parse')
         logger.debug(row)
-        content = {'Auction ID': row[0], 'Minimum Price': row[1], 'Item ID': row[2]}
+        content = {'Auction ID': int(row[0]), 'minprice': row[1], 'Item ID': row[2], 'Auction End Date': row[3], 'Auction Winner ID': row[4]}
 
         response = {'status': StatusCodes['success'], 'results': content}
 
     except (Exception, psycopg2.DatabaseError) as error:
-        logger.error(f'GET /users/<username> - error: {error}')
+        logger.error(f'GET /auction/{auctionid} - error: {error}')
         response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
 
     finally:
