@@ -282,7 +282,8 @@ def get_all_auctions(current_user):
 ## Use postman or cURL
 
 @app.route("/dbproj/auctions/<keyword>/", methods=['GET'])
-def search_auctions(keyword):
+@token_required
+def search_auctions(keyword, current_user):
     logger.info('GET /auctions/<keyword>')
 
     logger.debug('auction: {keyword}')
@@ -328,7 +329,7 @@ def get_user_details(auctionid):
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT auctionid, minprice, item_itemid, auctionenddate, auctionwinnerid FROM auction where auctionid = %i', (auctionid))
+        cur.execute('SELECT auctionid, minprice, item_itemid, auctionenddate, auctionwinnerid FROM auction where auctionid = %s', (auctionid))
         rows = cur.fetchall()
 
         row = rows[0]
@@ -400,11 +401,6 @@ def place_bid(auctionid, bid, current_user):
 
     logger.debug(f'POST / - payload: {payload}')
 
-    # do not forget to validate every argument, e.g.,:
-    if 'username' not in payload or 'amount' not in payload:
-        response = {'status': StatusCodes['api_error'], 'results': 'username value not in payload'}
-        return flask.jsonify(response)
-
     cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
     auctionenddate = cur.fetchone()
 
@@ -419,9 +415,15 @@ def place_bid(auctionid, bid, current_user):
         response = {'status': StatusCodes['api_error'], 'results': 'You must bid more than the minimum price'}
         return flask.jsonify(response)
 
+    cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
+    username = cur.fetchone()
+
+    cur.execute('SELECT personid FROM users WHERE username = users.username')
+    userid = cur.fetchone()
+
     # parameterized queries, good for security and performance
     statement = 'INSERT INTO bids (amount, auction_auctionid, buyer_users_personid) VALUES (%s, %s, %s)'
-    values = (bid, auctionid, current_user.personid)
+    values = (bid, auctionid, userid)
 
     try:
         cur.execute(statement, values)
