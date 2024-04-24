@@ -211,24 +211,28 @@ def create_auction(current_user):
         response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
         return flask.jsonify(response)
 
-    cur.execute('SELECT personid FROM users WHERE current_user = users.username ')
-    userid = cur.fetchone
+    cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
+    username = cur.fetchone()
+
+    cur.execute('SELECT personid FROM users WHERE username = users.username')
+    userid = cur.fetchone()
 
     # parameterized queries, good for security and performance
-    statement = 'INSERT INTO auction (auctionstate ,minprice, auctionenddate, title, description, item_itemid, seller_users_personid) \
-    VALUES (%s, %s, %s, %s, %s, %s)'
+    statement = 'INSERT INTO auction (auctionstate, minprice, auctionenddate, title, description, item_itemid, seller_users_personid) \
+    VALUES (%s, %s, %s, %s, %s, %s, %s)'
     values = ('open', payload['minprice'], payload['auctionenddate'], payload['title'],
-              payload['description'],payload['item_itemid'], userid)
+              payload['description'], payload['item_itemid'], userid)
+
 
     try:
         cur.execute(statement, values)
 
         # commit the transaction
         conn.commit()
-        response = {'status': StatusCodes['success'], 'results': f'Inserted users {payload["username"]}'}
+        response = {'status': StatusCodes['success'], 'results': f'Created Auction {payload["title"]}'}
 
     except (Exception, psycopg2.DatabaseError) as error:
-        logger.error(f'POST /users - error: {error}')
+        logger.error(f'POST /auction - error: {error}')
         response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
 
         # an error occurred, rollback
@@ -241,16 +245,15 @@ def create_auction(current_user):
     return flask.jsonify(response)
 
 
-## List all existing auctions. (complete) *just need to add the token verification*
+## List all existing auctions. (complete)
 ##
 ## This function lists all the existing auctions in the auctions table.
 ##
-## curl -X GET http://localhost:8080/auctions -H "Content-Type: application/json" -H "access-token: ssmith513580758"
+## use postman.
 
 @app.route("/auctions", methods=['GET'])
-# We need to add token verification and uncomment the line below and make sure the function still works.
-#@token_required
-def get_all_auctions(): #(current_user): <-- Add this back to the "get_all_auctions" part when token verification is working.
+@token_required
+def get_all_auctions(current_user):
     logger.info("###   DEMO: GET /auctions   ###")
 
     conn = db_connection()
@@ -266,7 +269,7 @@ def get_all_auctions(): #(current_user): <-- Add this back to the "get_all_aucti
         content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
         payload.append(content) # payload to be returned
 
-    conn.close()
+    conn.close ()
 
     return flask.jsonify(payload)
 
@@ -315,29 +318,61 @@ def search_auctions(keyword):
 ## (insert description of function)
 ##
 ## (insert how to test/run function)
+@app.route('/dbproj/auction/{auctionid}', methods=['GET'])
+def get_user_details(auctionid):
+    logger.info('GET /dbproj/auction/{auctionid}')
 
+    logger.debug('auctionid: {auctionid}')
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute('SELECT auctionid, minprice, item_itemid, auctionenddate, auctionwinnerid FROM auction where auctionid = %i', (auctionid))
+        rows = cur.fetchall()
+
+        row = rows[0]
+
+        logger.debug('GET /dbproj/auction/{auctionid} - parse')
+        logger.debug(row)
+        content = {'Auction ID': int(row[0]), 'minprice': row[1], 'Item ID': row[2], 'Auction End Date': row[3], 'Auction Winner ID': row[4]}
+
+        response = {'status': StatusCodes['success'], 'results': content}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'GET /auction/{auctionid} - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
+
+
+    
 
 
 ## List all auctions in which the user has activity. (Not complete)
 ##
 ## (insert description of function)
 ##
-## (insert how to test/run function)
+## Use postman
 
 @app.route("/userAuctions", methods=['GET'])
-# We need to add token verification and uncomment the line below and make sure the function still works.
-#@token_required
-def get_all_userAuctions(): #(current_user): <-- Add this back to the "get_all_auctions" part when token verification is working.
+@token_required
+def get_all_userAuctions(current_user):
     logger.info("###   DEMO: GET /userAuctions   ###")
 
     conn = db_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT auctionid, item_itemid FROM auction WHERE ") #Pick back up here Ramone.
+    # cur.execute("SELECT auctionid, item_itemid FROM auction WHERE ") <-- previous line
+    cur.execute('SELECT auctionid, description, auctionenddate FROM auction WHERE current_user = auctionwinnerid OR current_user = seller_users_personid ') # Is this correct? PICK UP HERE
     rows = cur.fetchall()
 
     payload = []
-    logger.info("---- auctions  ----")
+    logger.info("---- user auctions  ----")
     for row in rows:
         logger.info(row)
         content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
@@ -363,11 +398,11 @@ def place_bid(auctionid, bid, current_user):
     conn = db_connection()
     cur = conn.cursor()
 
-    logger.debug(f'POST /bid - payload: {payload}')
+    logger.debug(f'POST / - payload: {payload}')
 
     # do not forget to validate every argument, e.g.,:
-    if 'username' not in payload or 'amount' not in payload or 'bid' not in payload:
-        response = {'status': StatusCodes['api_error'], 'results': 'value not in payload'}
+    if 'username' not in payload or 'amount' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'username value not in payload'}
         return flask.jsonify(response)
 
     cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
@@ -509,11 +544,13 @@ def receive_messages(current_user):
 
 
 
-## Close auction.
+## Close auction. (not complete)
 ##
 ## (insert description of function)
 ##
-## (insert how to test/run function)
+## Use postman.
+# @app.route('/close', methods=['POST'])
+# def closeAuction():
 
 
 
@@ -524,6 +561,63 @@ def receive_messages(current_user):
 ## (insert how to test/run function)
 
 
+
+
+
+
+
+
+## Create an item
+#
+## (insert description of function)
+##
+## (insert how to test/run function)
+
+# @app.route('/dbproj/item', methods=['POST'])
+# @token_required
+# def create_item(current_user):
+#     logger.info('POST /item')
+#     payload = flask.request.get_json()
+#
+#     conn = db_connection()
+#     cur = conn.cursor()
+#
+#     logger.debug(f'POST /item - payload: {payload}')
+#
+#     # do not forget to validate every argument, e.g.,:
+#     if 'itemid' not in payload:
+#         response = {'status': StatusCodes['api_error'], 'results': 'itemid value not in payload'}
+#         return flask.jsonify(response)
+#
+#     cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
+#     username = cur.fetchone()
+#
+#     cur.execute('SELECT personid FROM users WHERE username = users.username')
+#     userid = cur.fetchone()
+#
+#     # parameterized queries, good for security and performance
+#     statement = 'INSERT INTO item (itemid, seller_users_personid) VALUES (%s, %s)'
+#     values = (payload['itemid'], userid)
+#
+#     try:
+#         cur.execute(statement, values)
+#
+#         # commit the transaction
+#         conn.commit()
+#         response = {'status': StatusCodes['success'], 'results': f'Inserted users {payload["username"]}'}
+#
+#     except (Exception, psycopg2.DatabaseError) as error:
+#         logger.error(f'POST /users - error: {error}')
+#         response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+#
+#         # an error occurred, rollback
+#         conn.rollback()
+#
+#     finally:
+#         if conn is not None:
+#             conn.close()
+#
+#     return flask.jsonify(response)
 
 
 ## THIS IS AN EXAMPLE BELOW.
