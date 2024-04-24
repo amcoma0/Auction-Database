@@ -47,6 +47,7 @@ CREATE TABLE item (
 
 CREATE TABLE auction (
 	auctionid		 SERIAL,
+	auctionstate     VARCHAR(20),
 	minprice		 DOUBLE PRECISION,
 	auctionenddate	 DATE,
 	auctionwinnerid	 INTEGER,

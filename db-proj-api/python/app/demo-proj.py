@@ -116,9 +116,9 @@ def landing_page():
 
 ## User Authentication.
 ##
-## (insert description of function)
+## This function allows a user to login with already created credentials
 ##
-## (insert how to run function)
+## Use postman to test, put data into JSON format in the request
 
 @app.route('/login', methods=['PUT'])
 def login_user():
@@ -189,9 +189,10 @@ def token_required(f):
     return decorator
 ## Create a new auction.
 ##
-## (insert description of function)
+## This function allows a user to create a new auction
 ##
-## (insert how to test/run function)
+## Login to the application first to get a token, then use postman to create the auction from
+## http://localhost:8080/dbproj/auction
 
 @app.route("/dbproj/auction", methods=['POST'])
 @token_required
@@ -214,9 +215,9 @@ def create_auction(current_user):
     userid = cur.fetchone
 
     # parameterized queries, good for security and performance
-    statement = 'INSERT INTO auction (minprice, auctionenddate, title, description, item_itemid, seller_users_personid) \
+    statement = 'INSERT INTO auction (auctionstate ,minprice, auctionenddate, title, description, item_itemid, seller_users_personid) \
     VALUES (%s, %s, %s, %s, %s, %s)'
-    values = (payload['minprice'], payload['auctionenddate'], payload['title'],
+    values = ('open', payload['minprice'], payload['auctionenddate'], payload['title'],
               payload['description'],payload['item_itemid'], userid)
 
     try:
@@ -468,8 +469,36 @@ def add_messageBoard():
 ## (insert description of function)
 ##
 ## (insert how to test/run function)
-# @app.route('/inbox', methods=['PUT'])
-# def
+@app.route('/inbox', methods=['GET'])
+@token_required
+def receive_messages(current_user):
+    logger.info('GET /inbox')
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute('SELECT message, posttime FROM board, users WHERE current_user.personid = board.users_personid')
+        rows = cur.fetchall()
+
+        logger.debug('GET /inbox - parse')
+        Results = []
+        for row in rows:
+            logger.debug(row)
+            content = {'message': row[0], 'posttime': row[1]}
+            Results.append(content)  # appending to the payload to be returned
+
+        response = {'status': StatusCodes['success'], 'results': Results}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'GET /inbox - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
 
 
 ## Outbid notification.
@@ -493,6 +522,7 @@ def add_messageBoard():
 ## (insert description of function)
 ##
 ## (insert how to test/run function)
+
 
 
 
