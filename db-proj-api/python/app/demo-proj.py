@@ -263,7 +263,7 @@ def get_all_auctions(current_user):
     rows = cur.fetchall()
 
     payload = []
-    logger.info("---- auctions  ----")
+    logger.info("---- auctions ----")
     for row in rows:
         logger.info(row)
         content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
@@ -354,9 +354,9 @@ def get_user_details(auctionid):
     
 
 
-## List all auctions in which the user has activity. (Not complete)
+## List all auctions in which the user has activity. (complete)
 ##
-## (insert description of function)
+## This function lists all the auctions in which the user has activity as a buyer or seller.
 ##
 ## Use postman
 
@@ -368,15 +368,14 @@ def get_all_userAuctions(current_user):
     conn = db_connection()
     cur = conn.cursor()
 
-    # cur.execute("SELECT auctionid, item_itemid FROM auction WHERE ") <-- previous line
-    cur.execute('SELECT auctionid, description, auctionenddate FROM auction WHERE current_user = auctionwinnerid OR current_user = seller_users_personid ') # Is this correct? PICK UP HERE
+    cur.execute('SELECT DISTINCT auctionid, description, auctionenddate FROM auction, bids, users WHERE ((auction.seller_users_personid = users.personid) OR (auction.auctionwinnerid = users.personid) OR (auction.auctionid = bids.auction_auctionid AND bids.buyer_users_personid = users.personid)) AND users.username = %s', (current_user,))
     rows = cur.fetchall()
 
     payload = []
     logger.info("---- user auctions  ----")
     for row in rows:
         logger.info(row)
-        content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
+        content = {'auctionid':int(row[0]), 'description':row[1]}
         payload.append(content) # payload to be returned
 
     conn.close()
