@@ -193,6 +193,8 @@ def token_required(f):
 ##
 ## Login to the application first to get a token, then use postman to create the auction from
 ## http://localhost:8080/dbproj/auction
+##
+## When creating auction, format date as 'YYYY-MM-DD'
 
 @app.route("/dbproj/auction", methods=['POST'])
 @token_required
@@ -259,15 +261,15 @@ def get_all_auctions(current_user):
     conn = db_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT auctionid, item_itemid FROM auction")
+    cur.execute("SELECT auctionid, item_itemid, auctionstate FROM auction")
     rows = cur.fetchall()
 
     payload = []
     logger.info("---- auctions ----")
     for row in rows:
         logger.info(row)
-        content = {'auctionid':int(row[0]), 'item_itemid':row[1]}
-        payload.append(content) # payload to be returned
+        content = {'auctionid': int(row[0]), 'item_itemid': row[1], 'auctionstate': row[2]}
+        payload.append(content)# payload to be returned
 
     conn.close ()
 
@@ -389,9 +391,9 @@ def get_all_userAuctions(current_user):
 ##
 ## (insert how to test/run function)
 
-@app.route('/dbproj/bid/{auctionid}/{bid}/', methods=['POST'])
+@app.route('/dbproj/bid/', methods=['POST'])
 @token_required
-def place_bid(auctionid, bid, current_user):
+def place_bid(current_user):
     logger.info('POST /bid')
     payload = flask.request.get_json()
 
@@ -400,18 +402,36 @@ def place_bid(auctionid, bid, current_user):
 
     logger.debug(f'POST / - payload: {payload}')
 
-    cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
-    auctionenddate = cur.fetchone()
-
-    if datetime.date.today() > auctionenddate:
-        response = {'status': StatusCodes['api_error'], 'results': 'Auction has already ended'}
+    if 'bid' not in payload or 'auctionid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
         return flask.jsonify(response)
+
+    # cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
+    # auctionenddate = cur.fetchone()
+    #
+    # auctionenddate = auctionenddate[0]
+    #
+    # if isinstance(auctionenddate, datetime.datetime):
+    #     auctionenddate = auctionenddate.date()
+    #
+    # current_date = datetime.date.today()
+    #
+    # if current_date > auctionenddate:
+    #     response = {'status': StatusCodes['api_error'], 'results': 'Auction has already ended'}
+    #     return flask.jsonify(response)
 
     cur.execute("SELECT minprice FROM auction WHERE auctionid = auction.auctionid")
     minprice = cur.fetchone()
 
-    if bid < minprice:
+    if payload['bid'] < str(minprice[0]):
         response = {'status': StatusCodes['api_error'], 'results': 'You must bid more than the minimum price'}
+        return flask.jsonify(response)
+
+    cur.execute("SELECT auctionstate FROM auction WHERE auctionid = %s", (payload['auctionid'],))
+    auctionstate = cur.fetchone()
+
+    if str(auctionstate[0]) == "closed":
+        response = {'status': StatusCodes['api_error'], 'results': 'This auction is canceled, sorry'}
         return flask.jsonify(response)
 
     cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
@@ -422,7 +442,7 @@ def place_bid(auctionid, bid, current_user):
 
     # parameterized queries, good for security and performance
     statement = 'INSERT INTO bids (amount, auction_auctionid, buyer_users_personid) VALUES (%s, %s, %s)'
-    values = (bid, auctionid, userid)
+    values = (payload['bid'], payload['auctionid'], userid)
 
     try:
         cur.execute(statement, values)
@@ -461,23 +481,32 @@ def place_bid(auctionid, bid, current_user):
 ## Use postman.
 
 @app.route('/messageBoard', methods=['POST'])
-def add_messageBoard():
+@token_required
+def add_messageBoard(current_user):
     logger.info('POST /messageBoard')
     payload = flask.request.get_json()
 
     conn = db_connection()
     cur = conn.cursor()
 
-    logger.debug(f'POST /users - payload: {payload}')
+    logger.debug(f'POST /messageBoard - payload: {payload}')
 
     # do not forget to validate every argument, e.g.,:
-    if 'message' not in payload or 'posttime' not in payload or 'auction_auctionid' not in payload or 'users_personid' not in payload:
+    if 'message' not in payload or 'auction_auctionid' not in payload:
         response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
         return flask.jsonify(response)
 
+    posttime = datetime.datetime.now()
+
+    cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
+    username = cur.fetchone()
+
+    cur.execute('SELECT personid FROM users WHERE username = users.username')
+    userid = cur.fetchone()
+
     # parameterized queries, good for security and performance
     statement = 'INSERT INTO board (message, posttime, auction_auctionid, users_personid) VALUES (%s, %s, %s, %s)'
-    values = (payload['message'], payload['posttime'], payload['auction_auctionid'], payload['users_personid'])
+    values = (payload['message'], posttime, payload['auction_auctionid'], userid)
 
     try:
         cur.execute(statement, values)
@@ -487,7 +516,7 @@ def add_messageBoard():
         response = {'status': StatusCodes['success'], 'results': f'Inserted message {payload["message"]}'}
 
     except (Exception, psycopg2.DatabaseError) as error:
-        logger.error(f'POST /users - error: {error}')
+        logger.error(f'POST /messageBoard - error: {error}')
         response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
 
         # an error occurred, rollback
@@ -514,7 +543,13 @@ def receive_messages(current_user):
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT message, posttime FROM board, users WHERE current_user.personid = board.users_personid')
+        cur.execute('SELECT username FROM tokens WHERE tokens.token = %s', (current_user,))
+        username = cur.fetchone()
+
+        cur.execute('SELECT personid FROM users WHERE users.username = %s', (username,))
+        userid = cur.fetchone()
+
+        cur.execute('SELECT message, posttime FROM board WHERE board.users_personid = %s', (userid,))
         rows = cur.fetchall()
 
         logger.debug('GET /inbox - parse')
@@ -560,65 +595,66 @@ def receive_messages(current_user):
 ## (insert description of function)
 ##
 ## (insert how to test/run function)
+@app.route("/cancelAuction", methods=["PUT"])
+@token_required
+def cancelAuction(current_user):
+    logger.info('PUT /cancelAuction')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'PUT /cancelAuction - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'auctionid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'auctionid is required to cancel an auction'}
+        return flask.jsonify(response)
+
+    cur.execute('SELECT username FROM tokens WHERE tokens.token = %s', (current_user,))
+    username = cur.fetchone()
+
+    cur.execute('SELECT personid FROM users WHERE users.username = %s', (username,))
+    userid = cur.fetchone()
+
+    # parameterized queries, good for security and performance
+    cur.execute('SELECT buyer_users_personid FROM bids WHERE auction_auctionid = %s', (payload['auctionid'],))
+    all_buyer_userid = cur.fetchall()
+
+    for userid in all_buyer_userid:
+        cur.execute('INSERT INTO board (message, posttime, auction_auctionid, users_personid) VALUES (%s, %s, %s, %s)',
+                    ('This auction has been canceled'), (datetime.datetime.now()), payload['auctionid'], userid)
+
+    statement = 'UPDATE auction SET auctionstate = %s WHERE auctionid = %s AND seller_users_personid = %s'
+    values = ('canceled', payload['auctionid'], userid)
+
+    auctionid = payload['auctionid']
+
+    try:
+        res = cur.execute(statement, values)
+        response = {'status': StatusCodes['success'], 'results': f'Canceled auction: {auctionid}'}
+
+        # commit the transaction
+        conn.commit()
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(error)
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
 
 
 
 
 
 
-
-
-## Create an item
-#
-## (insert description of function)
-##
-## (insert how to test/run function)
-
-# @app.route('/dbproj/item', methods=['POST'])
-# @token_required
-# def create_item(current_user):
-#     logger.info('POST /item')
-#     payload = flask.request.get_json()
-#
-#     conn = db_connection()
-#     cur = conn.cursor()
-#
-#     logger.debug(f'POST /item - payload: {payload}')
-#
-#     # do not forget to validate every argument, e.g.,:
-#     if 'itemid' not in payload:
-#         response = {'status': StatusCodes['api_error'], 'results': 'itemid value not in payload'}
-#         return flask.jsonify(response)
-#
-#     cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
-#     username = cur.fetchone()
-#
-#     cur.execute('SELECT personid FROM users WHERE username = users.username')
-#     userid = cur.fetchone()
-#
-#     # parameterized queries, good for security and performance
-#     statement = 'INSERT INTO item (itemid, seller_users_personid) VALUES (%s, %s)'
-#     values = (payload['itemid'], userid)
-#
-#     try:
-#         cur.execute(statement, values)
-#
-#         # commit the transaction
-#         conn.commit()
-#         response = {'status': StatusCodes['success'], 'results': f'Inserted users {payload["username"]}'}
-#
-#     except (Exception, psycopg2.DatabaseError) as error:
-#         logger.error(f'POST /users - error: {error}')
-#         response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
-#
-#         # an error occurred, rollback
-#         conn.rollback()
-#
-#     finally:
-#         if conn is not None:
-#             conn.close()
-#
-#     return flask.jsonify(response)
 
 
 ## THIS IS AN EXAMPLE BELOW.
