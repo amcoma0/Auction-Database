@@ -407,9 +407,9 @@ def place_bid(current_user):
         response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
         return flask.jsonify(response)
 
-    # cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
-    # auctionenddate = cur.fetchone()
-    #
+    cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
+    auctionenddate = cur.fetchone()
+
     # auctionenddate = auctionenddate[0]
     #
     # if isinstance(auctionenddate, datetime.datetime):
@@ -620,9 +620,9 @@ def cancelAuction(current_user):
 
     # parameterized queries, good for security and performance
     cur.execute('SELECT buyer_users_personid FROM bids WHERE auction_auctionid = %s', (payload['auctionid'],))
-    all_buyer_userid = cur.fetchall()
+    all_buyers_userid = cur.fetchall()
 
-    for userid in all_buyer_userid:
+    for userid in all_buyers_userid:
         cur.execute('INSERT INTO board (message, posttime, auction_auctionid, users_personid) VALUES (%s, %s, %s, %s)',
                     ('This auction has been canceled'), (datetime.datetime.now()), payload['auctionid'], userid)
 
