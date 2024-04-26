@@ -283,7 +283,7 @@ def get_all_auctions(current_user):
 ##
 ## Use postman or cURL
 
-@app.route("/dbproj/auctions/<keyword>/", methods=['GET'])
+@app.route("/dbproj/searchauctions/", methods=['GET'])
 @token_required
 def search_auctions(keyword, current_user):
     logger.info('GET /auctions/<keyword>')
@@ -292,6 +292,8 @@ def search_auctions(keyword, current_user):
 
     conn = db_connection()
     cur = conn.cursor()
+
+
 
     try:
         cur.execute('SELECT auctionid, minprice, item_itemid FROM auction where auctionid = %s', (keyword,))
@@ -632,7 +634,7 @@ def cancelAuction(current_user):
 
     try:
         res = cur.execute(statement, values)
-        response = {'status': StatusCodes['success'], 'results': f'Canceled auction: {auctionid}'}
+        response = {'status': StatusCodes['success'], 'results': f'Canceled auction with id: {auctionid}'}
 
         # commit the transaction
         conn.commit()
@@ -821,7 +823,7 @@ def update_users(username):
         return flask.jsonify(response)
 
     # parameterized queries, good for security and performance
-    statement = 'UPDATE users1 SET city = %s WHERE username = %s'
+    statement = 'UPDATE auction SET minprice = %s AND auctionenddate = %s AND title = %s WHERE username = %s'
     values = (payload['city'], username)
 
     try:
