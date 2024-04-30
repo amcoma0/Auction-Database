@@ -84,7 +84,7 @@ CREATE TABLE inbox (
 ALTER TABLE buyer ADD CONSTRAINT buyer_fk1 FOREIGN KEY (users_personid) REFERENCES users(personid);
 ALTER TABLE seller ADD CONSTRAINT seller_fk1 FOREIGN KEY (users_personid) REFERENCES users(personid);
 ALTER TABLE item ADD CONSTRAINT item_fk1 FOREIGN KEY (seller_users_personid) REFERENCES seller(users_personid);
-ALTER TABLE item ADD CONSTRAINT item_fk2 FOREIGN KEY (buyer_users_personid) REFERENCES buyer(users_personid);\
+ALTER TABLE item ADD CONSTRAINT item_fk2 FOREIGN KEY (buyer_users_personid) REFERENCES buyer(users_personid);
 ALTER TABLE bids ADD CONSTRAINT bids_fk1 FOREIGN KEY (auction_auctionid) REFERENCES auction(auctionid);
 ALTER TABLE bids ADD CONSTRAINT bids_fk2 FOREIGN KEY (buyer_users_personid) REFERENCES buyer(users_personid);
 ALTER TABLE board ADD CONSTRAINT board_fk1 FOREIGN KEY (auction_auctionid) REFERENCES auction(auctionid);

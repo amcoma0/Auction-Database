@@ -587,8 +587,46 @@ def receive_messages(current_user):
 ## (insert description of function)
 ##
 ## Use postman.
-# @app.route('/close', methods=['POST'])
-# def closeAuction():
+@app.route('/close', methods=['PUT'])
+def closeAuction():
+    logger.info('PUT /closeAuction')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    if 'auctionid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'auctionid is required to close an auction'}
+        return flask.jsonify(response)
+
+    cur.execute('SELECT buyer_users_personid FROM bids WHERE auction_auctionid = payload['auctionid'] and amount >= ALL (select amount from bids where auction_auctionid = payload['auctionid'])')
+    maxBidUser = cur.fetchone()
+
+    statement = 'UPDATE auction SET auctionstate = %s, auctionwinnerid = %s WHERE auctionid = %s'
+    values = ('closed', maxBidUser, payload['auctionid'])
+
+    auctionid = payload['auctionid']
+
+    try:
+        res = cur.execute(statement, values)
+        response = {'status': StatusCodes['success'], 'results': f'Closed auction with id: {auctionid}'}
+
+        # commit the transaction
+        conn.commit()
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(error)
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(payload)
+
 
 
 
