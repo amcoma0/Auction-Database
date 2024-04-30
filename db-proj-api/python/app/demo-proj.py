@@ -582,14 +582,14 @@ def receive_messages(current_user):
 
 
 
-## Close auction. (not complete)
+## Close auction. (complete)
 ##
 ## (insert description of function)
 ##
 ## Use postman.
 @app.route('/close', methods=['PUT'])
 def closeAuction():
-    logger.info('PUT /closeAuction')
+    logger.info('PUT /close')
     payload = flask.request.get_json()
 
     conn = db_connection()
@@ -599,7 +599,7 @@ def closeAuction():
         response = {'status': StatusCodes['api_error'], 'results': 'auctionid is required to close an auction'}
         return flask.jsonify(response)
 
-    cur.execute('SELECT buyer_users_personid FROM bids WHERE auction_auctionid = payload['auctionid'] and amount >= ALL (select amount from bids where auction_auctionid = payload['auctionid'])')
+    cur.execute('SELECT buyer_users_personid FROM bids WHERE auction_auctionid = %s and amount >= ALL (select amount from bids where auction_auctionid = %s)',(payload['auctionid'],payload['auctionid']))
     maxBidUser = cur.fetchone()
 
     statement = 'UPDATE auction SET auctionstate = %s, auctionwinnerid = %s WHERE auctionid = %s'
