@@ -323,17 +323,17 @@ def search_auctions(keyword, current_user):
 ## (insert description of function) Retrieves the details of an auction based on the item id number
 ##
 ## (insert how to test/run function)
-@app.route('/dbproj/auction/<item_itemid>', methods=['GET'])
-def get_details(item_itemid):
-    logger.info(f'GET /dbproj/auction/<item_itemid>')
+@app.route('/dbproj/auction/<auctionid>', methods=['GET'])
+def get_details(auctionid):
+    logger.info(f'GET /dbproj/auction/<auctionid>')
 
-    logger.debug('item_itemid: {item_itemid}')
+    logger.debug('item_itemid: {auctionid}')
 
     conn = db_connection()
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT minprice, auctionenddate, title, description, item_itemid, auctionid FROM auction where item_itemid = %s', (item_itemid,))
+        cur.execute('SELECT minprice, auctionenddate, title, description, item_itemid, auctionid FROM auction where auctionid = %s', (auctionid,))
         rows = cur.fetchall()
 
         row = rows[0]
