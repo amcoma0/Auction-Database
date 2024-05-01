@@ -320,32 +320,32 @@ def search_auctions(keyword, current_user):
 
 ## Retrieve details of an auction
 ##
-## (insert description of function)
+## (insert description of function) Retrieves the details of an auction based on the item id number
 ##
 ## (insert how to test/run function)
-@app.route('/dbproj/auction/{auctionid}', methods=['GET'])
-def get_user_details(auctionid):
-    logger.info('GET /dbproj/auction/{auctionid}')
+@app.route('/dbproj/auction/<item_itemid>', methods=['GET'])
+def get_details(item_itemid):
+    logger.info(f'GET /dbproj/auction/<item_itemid>')
 
-    logger.debug('auctionid: {auctionid}')
+    logger.debug('item_itemid: {item_itemid}')
 
     conn = db_connection()
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT auctionid, minprice, item_itemid, auctionenddate, auctionwinnerid FROM auction where auctionid = %s', (auctionid))
+        cur.execute('SELECT minprice, auctionenddate, title, description, item_itemid, auctionid FROM auction where item_itemid = %s', (item_itemid,))
         rows = cur.fetchall()
 
         row = rows[0]
 
-        logger.debug('GET /dbproj/auction/{auctionid} - parse')
+        logger.debug('GET /dbproj/auction/<item_itemid> - parse')
         logger.debug(row)
-        content = {'Auction ID': int(row[0]), 'minprice': row[1], 'Item ID': row[2], 'Auction End Date': row[3], 'Auction Winner ID': row[4]}
+        content = {'minprice': row[0], 'auctionenddate': row[1], 'title': row[2], 'description': row[3], 'item_itemid': row[4], 'auctionid': row[5]}
 
         response = {'status': StatusCodes['success'], 'results': content}
 
     except (Exception, psycopg2.DatabaseError) as error:
-        logger.error(f'GET /auction/{auctionid} - error: {error}')
+        logger.error(f'GET /dbproj/auction/{auctionid} - error: {error}')
         response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
 
     finally:
@@ -474,6 +474,46 @@ def place_bid(current_user):
 ##
 ## (insert how to test/run function)
 
+@app.route('/dbproj/auction/<auctionid>', methods=['PUT'])
+@token_required
+def edit_auction(current_user, auctionid):
+    logger.info('PUT /dbproj/auction/<auctionid>')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'PUT /dbproj/auction/<auctionid> - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'minprice' not in payload or 'auctionenddate' not in payload or 'title' not in payload or 'description' not in payload or 'item_itemid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'Missing Inputs'}
+        return flask.jsonify(response)
+
+
+    # parameterized queries, good for security and performance
+    statement = 'UPDATE auction SET minprice = %s , auctionenddate = %s , title = %s , description = %s , item_itemid = %s WHERE auctionid = %s'
+    values = (payload['minprice'], payload['auctionenddate'], payload['title'], payload['description'], payload['item_itemid'], auctionid)
+
+    try:
+        res = cur.execute(statement, values)
+        response = {'status': StatusCodes['success'], 'results': f'Updated: {cur.rowcount}'}
+
+        # commit the transaction
+        conn.commit()
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(error)
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
 
 
 ## Write a message on the auction's board. (complete) 
