@@ -620,6 +620,61 @@ def receive_messages(current_user):
 ##
 ## (insert how to test/run function)
 
+@app.route('/messageBoard', methods=['POST'])
+@token_required
+def outbid_notification(current_user):
+    logger.info('POST /messageBoard')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'POST /messageBoard - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'message' not in payload or 'auctionid' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
+        return flask.jsonify(response)
+
+    posttime = datetime.datetime.now()
+
+    cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
+    username = cur.fetchone()
+
+    cur.execute('SELECT personid FROM users WHERE username = users.username')
+    userid = cur.fetchone()
+
+    # Get the minimum price of the auction
+    cur.execute('SELECT minprice FROM auction WHERE auctionid = %s', (payload['auctionid'],))
+    minprice = cur.fetchone()[0]
+
+    # Check if the bid amount is greater than the minimum price
+    if 'bid' in payload and float(payload['bid']) > minprice:
+        # parameterized queries, good for security and performance
+        statement = 'INSERT INTO board (message, posttime, auctionid, users_personid) VALUES (%s, %s, %s, %s)'
+        values = (payload['message'], posttime, payload['auctionid'], userid)
+
+        try:
+            cur.execute(statement, values)
+
+            # commit the transaction
+            conn.commit()
+            response = {'status': StatusCodes['success'], 'results': f'Inserted message {payload["message"]}'}
+
+        except (Exception, psycopg2.DatabaseError) as error:
+            logger.error(f'POST /messageBoard - error: {error}')
+            response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+            # an error occurred, rollback
+            conn.rollback()
+
+    else:
+        response = {'status': StatusCodes['api_error'], 'results': 'Bid amount must be greater than the minimum price.'}
+
+    if conn is not None:
+        conn.close()
+
+    return flask.jsonify(response)
 
 
 ## Close auction. (complete)
