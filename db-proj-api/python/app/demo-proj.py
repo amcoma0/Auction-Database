@@ -398,6 +398,7 @@ def get_all_userAuctions(current_user):
 def place_bid(current_user):
     logger.info('POST /bid')
     payload = flask.request.get_json()
+    token = flask.request.headers['access-token']
 
     conn = db_connection()
     cur = conn.cursor()
@@ -408,45 +409,45 @@ def place_bid(current_user):
         response = {'status': StatusCodes['api_error'], 'results': 'Missing inputs.'}
         return flask.jsonify(response)
 
-    cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
-    auctionenddate = cur.fetchone()
-
-    # auctionenddate = auctionenddate[0]
-    #
-    # if isinstance(auctionenddate, datetime.datetime):
-    #     auctionenddate = auctionenddate.date()
-    #
-    # current_date = datetime.date.today()
-    #
-    # if current_date > auctionenddate:
-    #     response = {'status': StatusCodes['api_error'], 'results': 'Auction has already ended'}
-    #     return flask.jsonify(response)
-
-    cur.execute("SELECT minprice FROM auction WHERE auctionid = auction.auctionid")
-    minprice = cur.fetchone()
-
-    if payload['bid'] < str(minprice[0]):
-        response = {'status': StatusCodes['api_error'], 'results': 'You must bid more than the minimum price'}
-        return flask.jsonify(response)
-
-    cur.execute("SELECT auctionstate FROM auction WHERE auctionid = %s", (payload['auctionid'],))
-    auctionstate = cur.fetchone()
-
-    if str(auctionstate[0]) == "closed":
-        response = {'status': StatusCodes['api_error'], 'results': 'This auction is canceled, sorry'}
-        return flask.jsonify(response)
-
-    cur.execute('SELECT username FROM tokens WHERE current_user = tokens.token')
-    username = cur.fetchone()
-
-    cur.execute('SELECT personid FROM users WHERE username = users.username')
-    userid = cur.fetchone()
-
-    # parameterized queries, good for security and performance
-    statement = 'INSERT INTO bids (amount, auction_auctionid, buyer_users_personid) VALUES (%s, %s, %s)'
-    values = (payload['bid'], payload['auctionid'], userid)
-
     try:
+        cur.execute("SELECT auctionenddate FROM auction WHERE auctionid = auction.auctionid")
+        auctionenddate = cur.fetchone()
+
+        # auctionenddate = auctionenddate[0]
+        #
+        # if isinstance(auctionenddate, datetime.datetime):
+        #     auctionenddate = auctionenddate.date()
+        #
+        # current_date = datetime.date.today()
+        #
+        # if current_date > auctionenddate:
+        #     response = {'status': StatusCodes['api_error'], 'results': 'Auction has already ended'}
+        #     return flask.jsonify(response)
+
+        cur.execute("SELECT minprice FROM auction WHERE auctionid = auction.auctionid")
+        minprice = cur.fetchone()
+
+        if payload['bid'] < str(minprice[0]):
+            response = {'status': StatusCodes['api_error'], 'results': 'You must bid more than the minimum price'}
+            return flask.jsonify(response)
+
+        cur.execute("SELECT auctionstate FROM auction WHERE auctionid = %s", (payload['auctionid'],))
+        auctionstate = cur.fetchone()
+
+        if str(auctionstate[0]) == 'closed':
+            response = {'status': StatusCodes['api_error'], 'results': 'This auction is canceled, sorry'}
+            return flask.jsonify(response)
+
+        cur.execute('SELECT username FROM tokens WHERE tokens.token = %s', (token,))
+        username = cur.fetchone()
+
+        cur.execute('SELECT personid FROM users WHERE users.username = %s', (username,))
+        userid = cur.fetchone()
+
+        # parameterized queries, good for security and performance
+        statement = 'INSERT INTO bids (amount, auction_auctionid, buyer_users_personid) VALUES (%s, %s, %s)'
+        values = (payload['bid'], payload['auctionid'], userid)
+
         cur.execute(statement, values)
 
         # commit the transaction
@@ -540,12 +541,13 @@ def add_messageBoard(current_user):
 @token_required
 def receive_messages(current_user):
     logger.info('GET /inbox')
+    token = flask.request.headers['access-token']
 
     conn = db_connection()
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT username FROM tokens WHERE tokens.token = %s', (current_user,))
+        cur.execute('SELECT username FROM tokens WHERE tokens.token = %s', (token,))
         username = cur.fetchone()
 
         cur.execute('SELECT personid FROM users WHERE users.username = %s', (username,))
@@ -640,6 +642,7 @@ def closeAuction():
 def cancelAuction(current_user):
     logger.info('PUT /cancelAuction')
     payload = flask.request.get_json()
+    token = flask.request.headers['access-token']  # FIXED
 
     conn = db_connection()
     cur = conn.cursor()
@@ -651,28 +654,29 @@ def cancelAuction(current_user):
         response = {'status': StatusCodes['api_error'], 'results': 'auctionid is required to cancel an auction'}
         return flask.jsonify(response)
 
-    cur.execute('SELECT username FROM tokens WHERE tokens.token = %s', (current_user,))
-    username = cur.fetchone()
+    try:  # MOVED HERE - all DB statments should be in a try block
+        cur.execute('SELECT username FROM tokens WHERE tokens.token = %s', (token,))  # FIXED
+        username = cur.fetchone()[0]  # FIXED
 
-    cur.execute('SELECT personid FROM users WHERE users.username = %s', (username,))
-    userid = cur.fetchone()
+        cur.execute('SELECT personid FROM users WHERE users.username = %s', (username,))
+        userid = cur.fetchone()
 
-    # parameterized queries, good for security and performance
-    cur.execute('SELECT buyer_users_personid FROM bids WHERE auction_auctionid = %s', (payload['auctionid'],))
-    all_buyers_userid = cur.fetchall()
+        # parameterized queries, good for security and performance
+        cur.execute('SELECT buyer_users_personid FROM bids WHERE auction_auctionid = %s', (payload['auctionid'],))
+        all_buyers_userid = cur.fetchall()
 
-    for userid in all_buyers_userid:
-        cur.execute('INSERT INTO board (message, posttime, auction_auctionid, users_personid) VALUES (%s, %s, %s, %s)',
-                    ('This auction has been canceled'), (datetime.datetime.now()), payload['auctionid'], userid)
+        for userid in all_buyers_userid:
+            cur.execute(
+                'INSERT INTO board (message, posttime, auction_auctionid, users_personid) VALUES (%s, %s, %s, %s)',
+                ('This auction has been canceled'), (datetime.datetime.now()), payload['auctionid'], userid)
 
-    statement = 'UPDATE auction SET auctionstate = %s WHERE auctionid = %s AND seller_users_personid = %s'
-    values = ('canceled', payload['auctionid'], userid)
+        statement = 'UPDATE auction SET auctionstate = %s WHERE auctionid = %s AND seller_users_personid = %s'
+        values = ('canceled', payload['auctionid'], userid)
 
-    auctionid = payload['auctionid']
+        auctionid = payload['auctionid']
 
-    try:
         res = cur.execute(statement, values)
-        response = {'status': StatusCodes['success'], 'results': f'Canceled auction with id: {auctionid}'}
+        response = {'status': StatusCodes['success'], 'results': f'Canceled auction: {auctionid}'}
 
         # commit the transaction
         conn.commit()
