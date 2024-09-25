@@ -622,7 +622,7 @@ def receive_messages(current_user):
 ##
 ## (insert how to test/run function)
 
-@app.route('/messageBoard', methods=['POST'])
+@app.route('/messageBoard/', methods=['POST'])
 @token_required
 def outbid_notification(current_user):
     logger.info('POST /messageBoard')
